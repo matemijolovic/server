@@ -876,7 +876,7 @@ ENV PATH /opt/conda/bin:${{PATH}}
 '''
 
 
-def install_jetpack_dependencies(ddir, dockerfile_name, argmap, backends):
+def get_dependencies_jetpack(backends):
     df = '''
     # Common dependencies.
 RUN apt-get update && \
@@ -1041,7 +1041,7 @@ ARG TRITON_CONTAINER_VERSION
 SHELL ["cmd", "/S", "/C"]
 '''
     elif target_platform() == 'jetpack':
-        df += install_jetpack_dependencies(backends)
+        df += get_dependencies_jetpack(backends)
     else:
         df += '''
 # Ensure apt-get won't prompt for selecting options
