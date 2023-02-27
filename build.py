@@ -989,7 +989,9 @@ RUN apt-get install -y --no-install-recommends \
         df += '''
 RUN pip3 install --upgrade \
             {backend_pip_dependencies}
+        '''.format(backend_pip_dependencies=backend_pip_dependencies)
 
+    df += '''
 # Remove python2.7 and make python -> python3
 # Both Python 3.8 and 3.9 will be installed. Remove Python 3.9 to avoid python backend build failure.
 RUN apt-get purge -y python2.7-minimal python3.9-minimal
@@ -998,7 +1000,7 @@ RUN ln -snf /usr/bin/python3 /usr/bin/python
 ARG TORCH_INSTALL=http://sqrl.nvidia.com/nvdl/datasets/pip-scratch/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib/llvm-8/lib"
 RUN pip install --upgrade $TORCH_INSTALL
-'''.format(backend_pip_dependencies=backend_pip_dependencies)
+'''
 
     return df
 
@@ -1277,11 +1279,11 @@ ENV LD_LIBRARY_PATH /usr/local/cuda-11.8/lib64:${LD_LIBRARY_PATH}
 
     # runtime dependencies needed by onnxruntime
     if 'onnxruntime' in backends:
-        backend_pip_dependencies = " flake8 flatbuffers"
+        backend_pip_dependencies += " flake8 flatbuffers"
 
     # libopenblas-dev is needed by both onnxruntime and pytorch backends
     if ('onnxruntime' in backends) or ('pytorch' in backends):
-        backend_pip_dependencies = " libopenblas-dev"
+        backend_pip_dependencies += " libopenblas-dev"
 
     if 'python' in backends:
         backend_dependencies += " libarchive-dev"
@@ -1304,16 +1306,24 @@ RUN userdel tensorrt-server > /dev/null 2>&1 || true && \
     fi && \
     [ `id -u $TRITON_SERVER_USER` -eq 1000 ] && \
     [ `id -g $TRITON_SERVER_USER` -eq 1000 ]
-
+'''
+    if backend_dependencies:
+        df += '''
 # Dependencies unique to backends.
 # Separated into its own layer so that previous Docker layers can be reused
 # between containers with different backends.
 RUN apt-get install -y --no-install-recommends \
             {backend_dependencies} && \
             rm -rf /var/lib/apt/lists/*
+        '''.format(backend_dependencies=backend_dependencies)
 
+    if backend_pip_dependencies:
+        df += '''
 RUN pip3 install --upgrade \
             {backend_pip_dependencies}
+        '''.format(backend_pip_dependencies=backend_pip_dependencies)
+
+    df += '''
 
 # Remove python2.7 and make python -> python3
 # Both Python 3.8 and 3.9 will be installed. Remove Python 3.9 to avoid python backend build failure.
@@ -1327,8 +1337,7 @@ RUN pip install --upgrade $TORCH_INSTALL
 # TODO: Get rid of TCMALLOC?
 # Set TCMALLOC_RELEASE_RATE for users setting LD_PRELOAD with tcmalloc
 # ENV TCMALLOC_RELEASE_RATE 200
-'''.format(backend_dependencies=backend_dependencies,
-           backend_pip_dependencies=backend_pip_dependencies)
+'''
 
     return df
 
